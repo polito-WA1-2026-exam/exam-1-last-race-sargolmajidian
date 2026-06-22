@@ -1,122 +1,118 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useContext } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom';
+import { AuthContext } from './context/AuthContext';
+import AuthProvider from './context/AuthProvider';
+import { Navbar, Nav, Container, Button } from 'react-bootstrap';
+import HomeView from './views/HomeView';
+import LoginView from './views/LoginView';
+import RankingView from './views/RankingView';
+import GameView from './views/GameView';
 
-function App() {
-  const [count, setCount] = useState(0)
+function NavigationBar() {
+  const { user, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await fetch('http://localhost:3001/api/sessions/current', {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+    } catch (err) {
+      console.error("Logout fetch error:", err);
+    }
+    logout();
+    navigate('/'); 
+  };
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    <Navbar bg="dark" variant="dark" expand="lg" className="border-bottom border-secondary mb-4 shadow">
+      <Container>
+        <Navbar.Brand as={Link} to="/" className="fw-bold text-warning">
+          🚇 Last Race
+        </Navbar.Brand>
+        <Navbar.Toggle aria-controls="basic-navbar-nav" />
+        <Navbar.Collapse id="basic-navbar-nav">
+          <Nav className="me-auto">
+            <Nav.Link as={Link} to="/">Home</Nav.Link>
+            {/* FIXED: Only show Leaderboard link to registered users to respect specs strict privacy */}
+            {user && <Nav.Link as={Link} to="/ranking">Leaderboard</Nav.Link>}
+          </Nav>
+          <Nav className="ms-auto align-items-center">
+            {user ? (
+              <>
+                <Navbar.Text className="me-3 text-light">
+                  Hello, <span className="text-warning fw-semibold">{user.name}</span>
+                </Navbar.Text>
+                <Button variant="outline-danger" size="sm" onClick={handleLogout}>
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <Button as={Link} to="/login" variant="warning" size="sm" className="fw-bold">
+                Login
+              </Button>
+            )}
+          </Nav>
+        </Navbar.Collapse>
+      </Container>
+    </Navbar>
+  );
 }
 
-export default App
+// FIXED: Protected Component Route Guard to block anonymous URL tampering fully
+function ProtectedRoute({ children }) {
+  const { user } = useContext(AuthContext);
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
+function AppContent() {
+  const { loading } = useContext(AuthContext);
+
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-100 bg-dark text-warning">
+        <div className="spinner-border" role="status"></div>
+        <span className="ms-2">Loading system...</span>
+      </div>
+    );
+  }
+
+  return (
+    <Router>
+      <NavigationBar />
+      <Container className="flex-grow-1 pb-5">
+        <Routes>
+          <Route path="/" element={<HomeView />} />
+          <Route path="/login" element={<LoginView />} />
+          
+          {/* FIXED: Protected Routes strictly guarding system integrity against manual URL input */}
+          <Route path="/ranking" element={
+            <ProtectedRoute>
+              <RankingView />
+            </ProtectedRoute>
+          } />
+          <Route path="/game" element={
+            <ProtectedRoute>
+              <GameView />
+            </ProtectedRoute>
+          } />
+
+          {/* Fallback redirect */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Container>
+    </Router>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
